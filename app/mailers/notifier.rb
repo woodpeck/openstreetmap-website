@@ -75,7 +75,7 @@ class Notifier < ActionMailer::Base
 
       attach_user_avatar(message.sender)
 
-      mail :from => from_address(message.sender.display_name, "m", message.id, message.digest),
+      mail :from => from_address(message.sender.display_name, "m", message.id, message.sender.id, message.recipient.id),
            :to => message.recipient.email,
            :subject => I18n.t("notifier.message_notification.subject_header", :subject => message.title)
     end
@@ -95,7 +95,7 @@ class Notifier < ActionMailer::Base
 
       attach_user_avatar(comment.user)
 
-      mail :from => from_address(comment.user.display_name, "c", comment.id, comment.digest, recipient.id),
+      mail :from => from_address(comment.user.display_name, "c", comment.id, comment.user.id, recipient.id),
            :to => recipient.email,
            :subject => I18n.t("notifier.diary_comment_notification.subject", :user => comment.user.display_name)
     end
@@ -195,13 +195,12 @@ class Notifier < ActionMailer::Base
     end
   end
 
-  def from_address(name, type, id, digest, user_id = nil)
+  def from_address(name, type, id, from_user_id, to_user_id)
     if Object.const_defined?(:MESSAGES_DOMAIN) && domain = MESSAGES_DOMAIN
-      if user_id
-        "#{name} <#{type}-#{id}-#{user_id}-#{digest[0, 6]}@#{domain}>"
-      else
-        "#{name} <#{type}-#{id}-#{digest[0, 6]}@#{domain}>"
-      end
+      key = MessageKey.new(:replyable_type => type, :replyable_id => id, 
+        :reply_sender_id => to_user_id, :reply_recipient_id => from_user_id)
+      key.save!
+      "#{name} <#{key.key}@#{domain}>"
     else
       EMAIL_FROM
     end

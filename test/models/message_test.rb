@@ -70,6 +70,24 @@ class MessageTest < ActiveSupport::TestCase
     end
   end
 
+  def test_generates_email
+    sender_user = create(:user)
+    recipient_user = create(:user)
+    message = Message.new(:recipient => recipient_user,
+      :sender => sender_user,
+      :sent_on => Time.now.getutc,
+      :title => "test message",
+      :body => "message body text")
+    message.save!
+    Notifier.message_notification(message).deliver_now
+    key = MessageKey.first
+    assert(key)
+    assert(key.replyable_type == 'm')
+    assert(key.replyable_id == message.id)
+    assert(key.reply_recipient == sender_user.id)
+    assert(key.reply_sender == recipient_user.id)
+  end
+
   def test_from_mail_plain
     sender_user = create(:user)
     recipient_user = create(:user)

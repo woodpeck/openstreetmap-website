@@ -2,25 +2,41 @@
 
 require File.dirname(__FILE__) + "/../config/environment"
 
-if recipient = ARGV[0].match(/^c-(\d+)-(\d+)-(.*)$/)
-  comment = DiaryComment.find(recipient[1])
-  digest = comment.digest
-  date = comment.created_at
-  from = comment.diary_entry.subscribers.find(recipient[2])
-  to = comment.user
-  token = recipient[3]
-elsif recipient = ARGV[0].match(/^m-(\d+)-(.*)$/)
-  message = Message.find(recipient[1])
-  digest = message.digest
-  date = message.sent_on
-  from = message.recipient
-  to = message.sender
-  token = recipient[2]
-else
-  exit 0
+puts "lala"
+if recipient = ARGV[0].match(/^([[:xdigit:]]{32})$/)
+  puts "found"
+  msgkey = MessageKey.where(:key => recipient[0]).first
+  if msgkey.replyable_type == 'm'
+    message = Message.find(msgkey.replyable_id)
+  elsif msgkey.replyable_type == 'c'
+    comment = DiaryComment.find(msgkey.replyable_id)
+  end
+  from = msgkey.reply_sender
+  to = msgkey.reply_recipient
+  date = msgkey.created_at
+else 
+# --- this can be removed ~ 1 month after rolling out, and replaced by a mere "exit 0"
+  if recipient = ARGV[0].match(/^c-(\d+)-(\d+)-(.*)$/)
+    comment = DiaryComment.find(recipient[1])
+    digest = comment.digest
+    date = comment.created_at
+    from = User.find(recipient[2])
+    to = comment.user
+    token = recipient[3]
+  elsif recipient = ARGV[0].match(/^m-(\d+)-(.*)$/)
+    message = Message.find(recipient[1])
+    digest = message.digest
+    date = message.sent_on
+    from = message.recipient
+    to = message.sender
+    token = recipient[2]
+  else
+    exit 0
+  end
+  exit 0 unless token == digest[0, 6]
+# --- end of section to be removed
 end
 
-exit 0 unless token == digest[0, 6]
 exit 0 if date < 1.month.ago
 
 message&.update(:message_read => true)
